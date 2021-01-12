@@ -1,1 +1,2 @@
 # DoubleSpendSelfishSimulation
+start

@@ -1,53 +1,24 @@
 import numpy as np
 import random as rnd
-import pandas as pd
-from tqdm import tqdm
-
-nb_simulations = 2000000
-alpha = 0
-gamma = 0
-
-delta = 0
-privateChainRelative = 0  # relative
-publicChainRelative = 0
-
-honestValidBlocks = 0  # absolute
-selfishValidBlocks = 0
-
-actual_nb_of_steps = 1
-
-revenueRatio = None
-orphanBlocks = 0
-totalValidatedBlocks = 0
-
-# For difficulty adjustment
-Tho = 10
-n0 = 2016
-Sn0 = None
-B = 1
-currentTimestamp = 0
-
-numberOfBlocksBeforeAdjustment = 2016
-avgTimePerBlock = 10
-latestDifficultyChange = 0  # timestamp
 
 
-def reset(a=0.35, g=0.5):
-    global latestDifficultyChange, B, totalValidatedBlocks, honestValidBlocks, selfishValidBlocks, orphanBlocks, \
-        revenueRatio, Sn0, n0, Tho, currentTimestamp, actual_nb_of_steps, privateChainRelative, publicChainRelative, \
-        alpha, gamma, nb_simulations, delta, numberOfBlocksBeforeAdjustment, avgTimePerBlock
-    nb_simulations = 2000000
+def main(a, g, nb_sim=1000000):
+    # those variables need to be global, to be used in our update function
+    global latestDifficultyChange, B, revenueRatio, totalValidatedBlocks
+
+    # initializing variables
+    nb_simulations = nb_sim
     alpha = a
     gamma = g
 
     delta = 0
-    privateChainRelative = 0  # relative
-    publicChainRelative = 0
+    selfishForkRelative = 0  # relative
+    mainForkRelative = 0
 
     honestValidBlocks = 0  # absolute
     selfishValidBlocks = 0
 
-    actual_nb_of_steps = 1
+    totalNumberOfBlocksMined = 1
 
     revenueRatio = None
     orphanBlocks = 0
@@ -65,36 +36,43 @@ def reset(a=0.35, g=0.5):
     latestDifficultyChange = 0  # timestamp
 
 
-def main(a=0.35, g=0.5):
-    reset(a, g)
-    global latestDifficultyChange, B, totalValidatedBlocks, honestValidBlocks, selfishValidBlocks, orphanBlocks, \
-        revenueRatio, Sn0, n0, Tho, currentTimestamp, actual_nb_of_steps, privateChainRelative, publicChainRelative
-
     def actualizeAndChangeDifficulty(changeDifficulty):
-        global latestDifficultyChange, B, totalValidatedBlocks, honestValidBlocks, selfishValidBlocks, orphanBlocks, \
-            revenueRatio, Sn0, n0, Tho, currentTimestamp, privateChainRelative, publicChainRelative
+        global totalValidatedBlocks, latestDifficultyChange, B, revenueRatio
 
+        # we update values to check if we can stop the simulation or go on
         totalValidatedBlocks = honestValidBlocks + selfishValidBlocks
-        orphanBlocks = nb_simulations - totalValidatedBlocks
+        orphanBlocks = totalNumberOfBlocksMined - totalValidatedBlocks
 
         if honestValidBlocks or selfishValidBlocks:
-            revenueRatio = 100 * selfishValidBlocks / totalValidatedBlocks
+            revenueRatio = selfishValidBlocks / totalValidatedBlocks
         else:
-            revenueRatio = 0
+            revenueRatio = -1
 
         if changeDifficulty:
             Sn0 = currentTimestamp - latestDifficultyChange
             B = B * Sn0 / (n0 * Tho)
             latestDifficultyChange = currentTimestamp
 
+        # we stop the simulation if we are profitable
+        if revenueRatio > alpha and totalNumberOfBlocksMined > 2016:
+            return False
+
+        return True
+
+
     periodsBetweenDifficultyAdjustment = [numberOfBlocksBeforeAdjustment for _ in
                                           range(nb_simulations // numberOfBlocksBeforeAdjustment)]
+    running = True
 
     for i in range(len(periodsBetweenDifficultyAdjustment)):
-        selfishMinedBlocksTimestamps = map(lambda x: x + currentTimestamp, list(
-            np.cumsum(np.random.exponential(1 / alpha * 10 / B, periodsBetweenDifficultyAdjustment[i]))))
-        honestMinedBlocksTimestamps = map(lambda x: x + currentTimestamp, list(
-            np.cumsum(np.random.exponential(1 / (1 - alpha) * 10 / B, periodsBetweenDifficultyAdjustment[i]))))
+        if not running:
+            break
+
+        selfishList = list(np.cumsum(np.random.exponential(1 / alpha * 10 / B, int(periodsBetweenDifficultyAdjustment[i]))))
+        honestList = list(np.cumsum(np.random.exponential(1 / (1 - alpha) * 10 / B, int(periodsBetweenDifficultyAdjustment[i]))))
+
+        selfishMinedBlocksTimestamps = map(lambda x: x + currentTimestamp, selfishList)
+        honestMinedBlocksTimestamps = map(lambda x: x + currentTimestamp, honestList)
 
         honestBlocksMapping = {x: 'honest' for x in honestMinedBlocksTimestamps}
         selfishBlocksMapping = {x: 'selfish' for x in selfishMinedBlocksTimestamps}
@@ -102,42 +80,36 @@ def main(a=0.35, g=0.5):
         blocksList = {**honestBlocksMapping, **selfishBlocksMapping}
         blocksList = list(sorted(blocksList.items()))
 
-        # print(blocksList[2016])
-
-        # for block in blocksList[:5]:
-        #     print(f"timestamp : {block[0]}, class : {block[1]}")
-
-        for j in range(len(blocksList)):
+        for j in range(int(len(blocksList))):
             # stop condition
-            if actual_nb_of_steps > nb_simulations:
+            if totalNumberOfBlocksMined > nb_simulations or not running:
                 break
 
-            blockNumber = j
             block = blocksList[j]
 
             currentTimestamp = block[0]
 
             if block[1] == "selfish":
                 # handle selfish mining
-                delta = privateChainRelative - publicChainRelative
-                privateChainRelative += 1
+                delta = selfishForkRelative - mainForkRelative
+                selfishForkRelative += 1
 
-                if delta == 0 and privateChainRelative == 2:
-                    privateChainRelative, publicChainRelative = 0, 0
+                if delta == 0 and selfishForkRelative == 2:
+                    selfishForkRelative, mainForkRelative = 0, 0
                     selfishValidBlocks += 2
 
-                actualizeAndChangeDifficulty(changeDifficulty=False)
+                running = actualizeAndChangeDifficulty(False)
 
             else:
                 # handle honest mining
-                delta = privateChainRelative - publicChainRelative
-                publicChainRelative += 1
+                delta = selfishForkRelative - mainForkRelative
+                mainForkRelative += 1
 
                 if delta == 0:
                     honestValidBlocks += 1
 
                     # if private chain has 1 block hidden, the selfish chain releases it's block, competition follows
-                    if privateChainRelative > 0:
+                    if selfishForkRelative > 0:
                         # random to determine who wins the fight between selfish and honest when 2 blocks are sent at the
                         # same time
                         rand = rnd.uniform(0, 1)
@@ -147,48 +119,70 @@ def main(a=0.35, g=0.5):
                             selfishValidBlocks += 1
                         else:
                             honestValidBlocks += 1
+                    selfishForkRelative, mainForkRelative = 0, 0
 
-                    # in both cases, we reset both relative chains to 0
-                    privateChainRelative, publicChainRelative = 0, 0
+                elif delta >= 2:
+                    selfishValidBlocks += selfishForkRelative
+                    selfishForkRelative, mainForkRelative = 0, 0
 
-                elif delta == 2:
-                    selfishValidBlocks += privateChainRelative
-                    privateChainRelative, publicChainRelative = 0, 0
-
-                actualizeAndChangeDifficulty(changeDifficulty=False)
+                running = actualizeAndChangeDifficulty(False)
 
             if totalValidatedBlocks > (i + 1) * numberOfBlocksBeforeAdjustment:
                 # actualize and change difficulty
-                actualizeAndChangeDifficulty(changeDifficulty=True)
+                running = actualizeAndChangeDifficulty(True)
                 break
 
-            actual_nb_of_steps += 1
+            totalNumberOfBlocksMined += 1
 
-    actualizeAndChangeDifficulty(changeDifficulty=False)
+    actualizeAndChangeDifficulty(False)
 
-    print(f"""honest blocks : {honestValidBlocks}
-selfish blocks : {selfishValidBlocks}
-total blocks : {totalValidatedBlocks}
+    """print(f"honest blocks : {honestValidBlocks}\
+selfish blocks : {selfishValidBlocks}\
+total blocks : {totalValidatedBlocks}\
+\
+orphan blocks : {orphanBlocks}\
+\
+revenue ratio \t\t\t: \t{round(revenueRatio, 1)}%\
+revenue ratio if honest : \t{alpha*100}%")"""
 
-orphan blocks : {orphanBlocks}
-
-revenue ratio \t\t\t: \t{round(revenueRatio, 1)}%
-revenue ratio if honest : \t{alpha*100}%""")
-
-    # stats
-    qPrime = (totalValidatedBlocks-honestValidBlocks) / totalValidatedBlocks
-
-    ET0 = ((qPrime * (1.27-1)) / (qPrime - alpha))
-
-    print(f"ET0 = {ET0}")
-
-    if alpha == 1:
-        return 100, alpha * 100
+    """if revenueRatio/100 > alpha:
+        print(f"Selfish mining became profitable after {totalNumberOfBlocksMined*10} minutes.")
     else:
-        return round(revenueRatio, 1), alpha * 100
+        print("Selfish mining was never profitable")"""
+
+    if revenueRatio > alpha:
+        return {"simulated_ratio": round(revenueRatio, 3) * 100,
+                "honest_ratio": alpha * 100,
+                "time_to_end": totalNumberOfBlocksMined*10
+                }
+    else:
+        return {"simulated_ratio": round(revenueRatio, 3) * 100,
+                "honest_ratio": alpha * 100,
+                "time_to_end": -1
+                }
 
 
-print(main(0.5, 1))
+# print(main(0.2, 0.8))
+
+alpha = 0.2
+gamma = 0.75
+
+
+sel = []
+res = []
+result = None
+for i in range(100):
+    result = main(alpha, gamma, 1000000)
+    if result['time_to_end'] == -1:
+        print(f"honest : {result['honest_ratio']}, selfish : {result['simulated_ratio']}, not profitable")
+        break
+
+    sel.append(result['simulated_ratio'])
+    res.append(result['time_to_end'])
+
+if len(res) == 100 and len(sel) == 100:
+    minutes_to_profit = round(sum(res) / len(res))
+    print(f"honest : {result['honest_ratio']}%\nselfish_avg : {round(sum(sel)/len(sel), 1)}%\navg time to be profitable : {minutes_to_profit} minutes / {round(minutes_to_profit/(24*60))} days")
 
 # resS = []
 # resH = []

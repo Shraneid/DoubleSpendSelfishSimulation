@@ -30,7 +30,7 @@ A double-spend attack can be performed as follows:
 5. A is lucky and the fraudulent branch becomes longer than the valid one. The attacker nodes publish all the blocks in the new branch and all the nodes agree on considering them as the valid ones since the branch is longer than the current valid branch.
 6. B gave out the product or service to A without receiving any payment. At this point, B can not find A because it is anonymous or has left.
 
-![usecase1](https://github.com/victorlrz/DoubleSpendSelfishSimulation/blob/main/Crypto/docs/DoubleSpend.JPG)
+![usecase1](https://github.com/Shraneid/DoubleSpendSelfishSimulation/blob/main/Crypto/docs/DoubleSpend.JPG)
 
 Figure 4 depicts some stages of a successful double-spend attack. Stage (a) depicts the initial state of the blockchain. In Stage (b), honest nodes are extending
 the valid chain by putting valid blocks, while the attacker secretly starts mining a fraudulent branch. In Stage (c), the attacker succeeds in making the fraudulent
@@ -45,7 +45,7 @@ exactly n blocks once the honest nodes mine the K’th confirmation block, with 
 attack model of S. Nakamoto in considers that the attacker has exactly mined 1 fraudulent block before starting the attack, but it can be easily modified to handle
 an advantage of n fraudulent blocks.
 
-![usecase1](https://github.com/victorlrz/DoubleSpendSelfishSimulation/blob/main/Crypto/docs/AttackersPotentialProgress.JPG)
+![usecase1](https://github.com/Shraneid/DoubleSpendSelfishSimulation/blob/main/Crypto/docs/AttackersPotentialProgress.JPG)
 
 ```
 # Attacker's potential progress function
@@ -53,7 +53,7 @@ def P_N(q,m,n):
     return poisson.pmf(n, m*q/(1-q))
 ```
 
-![usecase2](https://github.com/victorlrz/DoubleSpendSelfishSimulation/blob/main/Crypto/docs/CatchUpFunction.JPG)
+![usecase2](https://github.com/Shraneid/DoubleSpendSelfishSimulation/blob/main/Crypto/docs/CatchUpFunction.JPG)
 
 ```
 # Catch up function
@@ -65,7 +65,7 @@ def C(q,z):
     return prob
 ```
 
-![usecase3](https://github.com/victorlrz/DoubleSpendSelfishSimulation/blob/main/Crypto/docs/DoubleSpendAttackProbability.JPG)
+![usecase3](https://github.com/Shraneid/DoubleSpendSelfishSimulation/blob/main/Crypto/docs/DoubleSpendAttackProbability.JPG)
 
 ```
 # Double-spend attack probability
@@ -131,7 +131,7 @@ is greater than 2 always end up being accepted by the network.
 
 Ici, on considère l'ajustement de difficulté implémentée dans Bitcoin Core: l'ajustement se fait tous les 2016 blocs en prenant en compte la durée mise pour valider ces derniers 2016 blocs. La difficulté de minage est constante par morceau (par parliers de 2016 blocs)
 
-![usecase4](https://github.com/victorlrz/DoubleSpendSelfishSimulation/blob/main/Crypto/docs/Corollaire.JPG)
+![usecase4](https://github.com/Shraneid/DoubleSpendSelfishSimulation/blob/main/Crypto/docs/Corollaire.JPG)
 
 On obtient les résulats suivants :
 
@@ -141,18 +141,18 @@ Exemple pour alpha = 0.2 et gamma = 0.75
 - selfish_avg : 20.8%
 - avg time to be profitable : 30102 minutes / 21 days
 
-![usecase4](https://github.com/victorlrz/DoubleSpendSelfishSimulation/blob/main/Crypto/docs/bitcoin.png)
+![usecase4](https://github.com/Shraneid/DoubleSpendSelfishSimulation/blob/main/Crypto/docs/bitcoin.png)
 
 You can run the script and change the parameters !
 
 ### 2.2 Cas de Bitcoin Cash
 
-![usecase5](https://github.com/victorlrz/DoubleSpendSelfishSimulation/blob/main/Crypto/docs/bcashcase.JPG)
+![usecase5](https://github.com/Shraneid/DoubleSpendSelfishSimulation/blob/main/Crypto/docs/bcashcase.JPG)
 
 Example pour alpha = 0.2 et gamma = 0.75
 {'selfish': 21.9, 'profitable': True}
 
-![usecase4](https://github.com/victorlrz/DoubleSpendSelfishSimulation/blob/main/Crypto/docs/bcash.png)
+![usecase4](https://github.com/Shraneid/DoubleSpendSelfishSimulation/blob/main/Crypto/docs/bcash.png)
 
 You can run the script and change the parameters !
 

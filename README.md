@@ -47,42 +47,39 @@ an advantage of n fraudulent blocks.
 
 ![usecase1](https://github.com/Shraneid/DoubleSpendSelfishSimulation/blob/main/Crypto/docs/AttackersPotentialProgress.JPG)
 
-```
-# Attacker's potential progress function
-def P_N(q,m,n):
-    return poisson.pmf(n, m*q/(1-q))
-```
-
-![usecase2](https://github.com/Shraneid/DoubleSpendSelfishSimulation/blob/main/Crypto/docs/CatchUpFunction.JPG)
-
-```
-# Catch up function
-def C(q,z):
-    if z<0 or q>=0.5:
-        prob = 1
-    else:
-        prob = (q/(1-q)) ** (z+1)
-    return prob
-```
-
-![usecase3](https://github.com/Shraneid/DoubleSpendSelfishSimulation/blob/main/Crypto/docs/DoubleSpendAttackProbability.JPG)
-
-```
-# Double-spend attack probability
-def DS_N(q,K):
-    return 1-sum(P_N(q,K,n)*(1-C(q,K-n-1)) for n in range(0,K+1))
-```
-
 We finally define our custom double spend function :
 
 ```
-def doublespendfun(x, n, z, A, k, v):
-    out = [v*DS_N(float(q_value), k) for q_value in x]
+def doublespendfun(q_values, n, z, A, k, v):
+    out = []
+    for q in q_values:
+        double_spend_strategy_winnings = 0
+        honest_winnings = 0
+
+        for i in range(n):
+            main_chain = 0
+            hidden_chain = k
+            while hidden_chain - main_chain > -A and not (hidden_chain > main_chain >= z):
+                if random.random() < q:
+                    hidden_chain += 1
+                if random.random() < 1 - q:
+                    main_chain += 1
+
+            if hidden_chain > main_chain:
+                double_spend_strategy_winnings += v + hidden_chain * coinbase_reward
+
+            honest_winnings += (main_chain + hidden_chain) * coinbase_reward * q
+
+        out.append((double_spend_strategy_winnings / n) / (honest_winnings/n))
 
     return out
 ```
 
-The user can custom the input parameters threw a small application. Just run the script in order to play with it !
+![doublespendgif](https://github.com/Shraneid/DoubleSpendSelfishSimulation/blob/main/Crypto/docs/doublespend.gif)
+
+Here you can see the script in action
+
+The user can custom the input parameters through a small application. Just run the script in order to play with it !
 
 ## Simulation de l'attaque de minage égoïste
 

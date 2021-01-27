@@ -1,8 +1,8 @@
 import numpy as np
 import random as rnd
-import pandas as pd
-from tqdm import tqdm
 
+alpha = 0.2
+gamma = 0.75
 
 def main(a=0.35, g=0.5, nb_sim=1000000):
     global B, revenueRatio
@@ -12,13 +12,13 @@ def main(a=0.35, g=0.5, nb_sim=1000000):
     gamma = g
 
     delta = 0
-    privateChainRelative = 0  # relative
-    publicChainRelative = 0
+    selfishForkRelative = 0  # relative
+    mainForkRelative = 0
 
     honestValidBlocks = 0  # absolute
     selfishValidBlocks = 0
 
-    actual_nb_of_steps = 1
+    totalNumberOfBlocksMined = 1
 
     revenueRatio = None
     orphanBlocks = 0
@@ -36,12 +36,11 @@ def main(a=0.35, g=0.5, nb_sim=1000000):
 
     validatedBlockTimestamps = []
 
-
     def actualizeAndChangeDifficulty(timestampsList):
         global B, revenueRatio, totalValidatedBlocks
 
         totalValidatedBlocks = honestValidBlocks + selfishValidBlocks
-        orphanBlocks = actual_nb_of_steps - totalValidatedBlocks
+        orphanBlocks = totalNumberOfBlocksMined - totalValidatedBlocks
 
         if honestValidBlocks or selfishValidBlocks:
             revenueRatio = selfishValidBlocks / totalValidatedBlocks
@@ -58,11 +57,10 @@ def main(a=0.35, g=0.5, nb_sim=1000000):
             while len(validatedBlockTimestamps) >= 144:
                 validatedBlockTimestamps.pop(0)
 
-        if revenueRatio > alpha and actual_nb_of_steps > 144:
+        if revenueRatio > alpha and totalNumberOfBlocksMined > 144:
             return False
 
         return True
-
 
     periodsBetweenDifficultyAdjustment = [numberOfBlocksBeforeAdjustment for _ in
                                           range(nb_simulations // numberOfBlocksBeforeAdjustment)]
@@ -88,7 +86,7 @@ def main(a=0.35, g=0.5, nb_sim=1000000):
 
         for j in range(int(len(blocksList))):
             # stop condition
-            if actual_nb_of_steps > nb_simulations or not running:
+            if totalNumberOfBlocksMined > nb_simulations or not running:
                 break
 
             block = blocksList[j]
@@ -97,26 +95,26 @@ def main(a=0.35, g=0.5, nb_sim=1000000):
 
             if block[1] == "selfish":
                 # handle selfish mining
-                delta = privateChainRelative - publicChainRelative
-                privateChainRelative += 1
+                delta = selfishForkRelative - mainForkRelative
+                selfishForkRelative += 1
 
-                if delta == 0 and privateChainRelative == 2:
-                    privateChainRelative, publicChainRelative = 0, 0
+                if delta == 0 and selfishForkRelative == 2:
+                    selfishForkRelative, mainForkRelative = 0, 0
                     selfishValidBlocks += 2
 
                     running = actualizeAndChangeDifficulty([blocksList[j - 1][0], currentTimestamp])
 
             else:
                 # handle honest mining
-                delta = privateChainRelative - publicChainRelative
-                publicChainRelative += 1
+                delta = selfishForkRelative - mainForkRelative
+                mainForkRelative += 1
 
                 if delta == 0:
                     honestValidBlocks += 1
                     running = actualizeAndChangeDifficulty([currentTimestamp])
 
                     # if private chain has 1 block hidden, the selfish chain releases it's block, competition follows
-                    if privateChainRelative > 0:
+                    if selfishForkRelative > 0:
                         rand = rnd.uniform(0, 1)
 
                         # maybe to change
@@ -128,37 +126,29 @@ def main(a=0.35, g=0.5, nb_sim=1000000):
                             running = actualizeAndChangeDifficulty([currentTimestamp])
 
                     # in both cases, we reset both relative chains to 0
-                    privateChainRelative, publicChainRelative = 0, 0
+                    selfishForkRelative, mainForkRelative = 0, 0
 
                 elif delta >= 2:
-                    selfishValidBlocks += privateChainRelative
-                    privateChainRelative, publicChainRelative = 0, 0
+                    selfishValidBlocks += selfishForkRelative
+                    selfishForkRelative, mainForkRelative = 0, 0
 
                     running = actualizeAndChangeDifficulty([blocksList[j - 1][0], currentTimestamp])
 
             if totalValidatedBlocks > (i + 1) * numberOfBlocksBeforeAdjustment:
                 break
 
-            actual_nb_of_steps += 1
-
+            totalNumberOfBlocksMined += 1
 
     if revenueRatio > alpha:
         return {"simulated_ratio": round(revenueRatio, 3) * 100,
                 "honest_ratio": alpha * 100,
-                "time_to_end": actual_nb_of_steps*10
+                "time_to_end": totalNumberOfBlocksMined*10
                 }
     else:
         return {"simulated_ratio": round(revenueRatio, 3) * 100,
                 "honest_ratio": alpha * 100,
                 "time_to_end": -1
                 }
-
-
-
-alpha = 0.3
-gamma = 0.75
-
-#print(main(alpha, gamma))
 
 
 def get_avg(alpha, gamma):
@@ -181,34 +171,5 @@ def get_avg(alpha, gamma):
     else:
         return {"selfish": round(sum(sel)/len(sel), 1), "profitable": False}
 
-print(get_avg(0.1, 0.0))
 
-"""resS = []
-resH = []
-
-for alpha in tqdm(np.linspace(0, 0.5, 11)):
-    rowS = []
-    rowH = []
-    for gamma in np.linspace(0, 1, 11):
-        r = get_avg(alpha, gamma)
-        rowS.append([r["selfish"], r["profitable"]])
-        # print("__________________________")
-
-    resS.append(rowS)
-
-# columns for dataframes
-alphas = [round(x, 2) for x in np.linspace(0, 0.5, 11)]
-gammas = [round(x, 2) for x in np.linspace(0, 1, 11)]
-
-dfS = pd.DataFrame(resS, columns=gammas)
-#dfH = pd.DataFrame(resH, columns=gammas)
-
-dfS = dfS.T
-#dfH = dfH.T
-
-dfS.columns = alphas
-#dfH.columns = alphas
-
-print(dfS)"""
-"""print()
-print(dfH)"""
+print(get_avg(alpha, gamma))

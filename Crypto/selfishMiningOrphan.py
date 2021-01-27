@@ -1,6 +1,8 @@
 import numpy as np
 import random as rnd
 
+alpha = 0.2
+gamma = 0.75
 
 def main(a, g, nb_sim=1000000):
     global latestDifficultyChange, B, revenueRatio, totalValidatedBlocks
@@ -10,13 +12,13 @@ def main(a, g, nb_sim=1000000):
     gamma = g
 
     delta = 0
-    privateChainRelative = 0  # relative
-    publicChainRelative = 0
+    selfishForkRelative = 0  # relative
+    mainForkRelative = 0
 
     honestValidBlocks = 0  # absolute
     selfishValidBlocks = 0
 
-    actual_nb_of_steps = 1
+    totalNumberOfBlocksMined = 1
 
     revenueRatio = None
     orphanBlocks = 0
@@ -33,12 +35,11 @@ def main(a, g, nb_sim=1000000):
     avgTimePerBlock = 10
     latestDifficultyChange = 0  # timestamp
 
-
     def actualizeAndChangeDifficulty(changeDifficulty):
         global totalValidatedBlocks, latestDifficultyChange, B, revenueRatio
 
         totalValidatedBlocks = honestValidBlocks + selfishValidBlocks
-        orphanBlocks = actual_nb_of_steps - totalValidatedBlocks
+        orphanBlocks = totalNumberOfBlocksMined - totalValidatedBlocks
 
         if honestValidBlocks or selfishValidBlocks:
             revenueRatio = selfishValidBlocks / totalValidatedBlocks
@@ -50,11 +51,10 @@ def main(a, g, nb_sim=1000000):
             B = B * Sn0 / (n0 * Tho)
             latestDifficultyChange = currentTimestamp
 
-        if revenueRatio > alpha and actual_nb_of_steps > 2016:
+        if revenueRatio > alpha and totalNumberOfBlocksMined > 2016:
             return False
 
         return True
-
 
     periodsBetweenDifficultyAdjustment = [numberOfBlocksBeforeAdjustment for _ in
                                           range(nb_simulations // numberOfBlocksBeforeAdjustment)]
@@ -64,8 +64,10 @@ def main(a, g, nb_sim=1000000):
         if not running:
             break
 
-        selfishList = list(np.cumsum(np.random.exponential(1 / alpha * 10 / B, int(periodsBetweenDifficultyAdjustment[i]))))
-        honestList = list(np.cumsum(np.random.exponential(1 / (1 - alpha) * 10 / B, int(periodsBetweenDifficultyAdjustment[i]))))
+        selfishList = list(np.cumsum(np.random.exponential(1 / alpha * 10 / B,
+                                                           int(periodsBetweenDifficultyAdjustment[i]))))
+        honestList = list(np.cumsum(np.random.exponential(1 / (1 - alpha) * 10 / B,
+                                                          int(periodsBetweenDifficultyAdjustment[i]))))
 
         selfishMinedBlocksTimestamps = map(lambda x: x + currentTimestamp, selfishList)
         honestMinedBlocksTimestamps = map(lambda x: x + currentTimestamp, honestList)
@@ -78,7 +80,7 @@ def main(a, g, nb_sim=1000000):
 
         for j in range(int(len(blocksList))):
             # stop condition
-            if actual_nb_of_steps > nb_simulations or not running:
+            if totalNumberOfBlocksMined > nb_simulations or not running:
                 break
 
             block = blocksList[j]
@@ -87,27 +89,27 @@ def main(a, g, nb_sim=1000000):
 
             if block[1] == "selfish":
                 # handle selfish mining
-                delta = privateChainRelative - publicChainRelative
-                privateChainRelative += 1
+                delta = selfishForkRelative - mainForkRelative
+                selfishForkRelative += 1
 
-                if delta == 0 and privateChainRelative == 2:
-                    privateChainRelative, publicChainRelative = 0, 0
+                if delta == 0 and selfishForkRelative == 2:
+                    selfishForkRelative, mainForkRelative = 0, 0
                     selfishValidBlocks += 2
 
                 running = actualizeAndChangeDifficulty(False)
 
             else:
                 # handle honest mining
-                delta = privateChainRelative - publicChainRelative
-                publicChainRelative += 1
+                delta = selfishForkRelative - mainForkRelative
+                mainForkRelative += 1
 
                 if delta == 0:
                     honestValidBlocks += 1
 
                     # if private chain has 1 block hidden, the selfish chain releases it's block, competition follows
-                    if privateChainRelative > 0:
-                        # random to determine who wins the fight between selfish and honest when 2 blocks are sent at the
-                        # same time
+                    if selfishForkRelative > 0:
+                        # random to determine who wins the fight between selfish and honest when 2 blocks are sent at
+                        # the same time
                         rand = rnd.uniform(0, 1)
 
                         # maybe to change
@@ -115,53 +117,33 @@ def main(a, g, nb_sim=1000000):
                             selfishValidBlocks += 1
                         else:
                             honestValidBlocks += 1
-                    privateChainRelative, publicChainRelative = 0, 0
+                    selfishForkRelative, mainForkRelative = 0, 0
 
                 elif delta >= 2:
-                    selfishValidBlocks += privateChainRelative
-                    privateChainRelative, publicChainRelative = 0, 0
+                    selfishValidBlocks += selfishForkRelative
+                    selfishForkRelative, mainForkRelative = 0, 0
 
                 running = actualizeAndChangeDifficulty(False)
 
-            if actual_nb_of_steps >= (i + 1) * numberOfBlocksBeforeAdjustment:
+            if totalNumberOfBlocksMined >= (i + 1) * numberOfBlocksBeforeAdjustment:
                 # actualize and change difficulty
                 running = actualizeAndChangeDifficulty(True)
                 break
 
-            actual_nb_of_steps += 1
+            totalNumberOfBlocksMined += 1
 
     actualizeAndChangeDifficulty(False)
-
-    """print(f"honest blocks : {honestValidBlocks}\
-selfish blocks : {selfishValidBlocks}\
-total blocks : {totalValidatedBlocks}\
-\
-orphan blocks : {orphanBlocks}\
-\
-revenue ratio \t\t\t: \t{round(revenueRatio, 1)}%\
-revenue ratio if honest : \t{alpha*100}%")"""
-
-    """if revenueRatio/100 > alpha:
-        print(f"Selfish mining became profitable after {actual_nb_of_steps*10} minutes.")
-    else:
-        print("Selfish mining was never profitable")"""
 
     if revenueRatio > alpha:
         return {"simulated_ratio": round(revenueRatio, 3) * 100,
                 "honest_ratio": alpha * 100,
-                "time_to_end": actual_nb_of_steps*10
+                "time_to_end": totalNumberOfBlocksMined*10
                 }
     else:
         return {"simulated_ratio": round(revenueRatio, 3) * 100,
                 "honest_ratio": alpha * 100,
                 "time_to_end": -1
                 }
-
-
-# print(main(0.2, 0.8))
-
-alpha = 0.2
-gamma = 0.75
 
 
 sel = []
@@ -178,4 +160,5 @@ for i in range(100):
 
 if len(res) == 100 and len(sel) == 100:
     minutes_to_profit = round(sum(res) / len(res))
-    print(f"honest : {result['honest_ratio']}%\nselfish_avg : {round(sum(sel)/len(sel), 1)}%\navg time to be profitable : {minutes_to_profit} minutes / {round(minutes_to_profit/(24*60))} days")
+    print(f"honest : {result['honest_ratio']}%\nselfish_avg : {round(sum(sel)/len(sel), 1)}%\n\
+    avg time to be profitable : {minutes_to_profit} minutes / {round(minutes_to_profit/(24*60))} days")

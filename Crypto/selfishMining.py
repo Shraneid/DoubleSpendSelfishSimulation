@@ -1,6 +1,8 @@
 import numpy as np
 import random as rnd
 
+alpha = 0.2
+gamma = 0.75
 
 def main(a, g, nb_sim=1000000):
     # those variables need to be global, to be used in our update function
@@ -35,7 +37,6 @@ def main(a, g, nb_sim=1000000):
     avgTimePerBlock = 10
     latestDifficultyChange = 0  # timestamp
 
-
     def actualizeAndChangeDifficulty(changeDifficulty):
         global totalValidatedBlocks, latestDifficultyChange, B, revenueRatio
 
@@ -59,7 +60,6 @@ def main(a, g, nb_sim=1000000):
 
         return True
 
-
     periodsBetweenDifficultyAdjustment = [numberOfBlocksBeforeAdjustment for _ in
                                           range(nb_simulations // numberOfBlocksBeforeAdjustment)]
     running = True
@@ -68,8 +68,10 @@ def main(a, g, nb_sim=1000000):
         if not running:
             break
 
-        selfishList = list(np.cumsum(np.random.exponential(1 / alpha * 10 / B, int(periodsBetweenDifficultyAdjustment[i]))))
-        honestList = list(np.cumsum(np.random.exponential(1 / (1 - alpha) * 10 / B, int(periodsBetweenDifficultyAdjustment[i]))))
+        selfishList = list(np.cumsum(np.random.exponential(1 / alpha * 10 / B,
+                                                           int(periodsBetweenDifficultyAdjustment[i]))))
+        honestList = list(np.cumsum(np.random.exponential(1 / (1 - alpha) * 10 / B,
+                                                          int(periodsBetweenDifficultyAdjustment[i]))))
 
         selfishMinedBlocksTimestamps = map(lambda x: x + currentTimestamp, selfishList)
         honestMinedBlocksTimestamps = map(lambda x: x + currentTimestamp, honestList)
@@ -110,8 +112,8 @@ def main(a, g, nb_sim=1000000):
 
                     # if private chain has 1 block hidden, the selfish chain releases it's block, competition follows
                     if selfishForkRelative > 0:
-                        # random to determine who wins the fight between selfish and honest when 2 blocks are sent at the
-                        # same time
+                        # random to determine who wins the fight between selfish and honest when 2 blocks are sent at
+                        # the same time
                         rand = rnd.uniform(0, 1)
 
                         # maybe to change
@@ -136,20 +138,6 @@ def main(a, g, nb_sim=1000000):
 
     actualizeAndChangeDifficulty(False)
 
-    """print(f"honest blocks : {honestValidBlocks}\
-selfish blocks : {selfishValidBlocks}\
-total blocks : {totalValidatedBlocks}\
-\
-orphan blocks : {orphanBlocks}\
-\
-revenue ratio \t\t\t: \t{round(revenueRatio, 1)}%\
-revenue ratio if honest : \t{alpha*100}%")"""
-
-    """if revenueRatio/100 > alpha:
-        print(f"Selfish mining became profitable after {totalNumberOfBlocksMined*10} minutes.")
-    else:
-        print("Selfish mining was never profitable")"""
-
     if revenueRatio > alpha:
         return {"simulated_ratio": round(revenueRatio, 3) * 100,
                 "honest_ratio": alpha * 100,
@@ -160,12 +148,6 @@ revenue ratio if honest : \t{alpha*100}%")"""
                 "honest_ratio": alpha * 100,
                 "time_to_end": -1
                 }
-
-
-# print(main(0.2, 0.8))
-
-alpha = 0.2
-gamma = 0.75
 
 
 sel = []
@@ -182,36 +164,5 @@ for i in range(100):
 
 if len(res) == 100 and len(sel) == 100:
     minutes_to_profit = round(sum(res) / len(res))
-    print(f"honest : {result['honest_ratio']}%\nselfish_avg : {round(sum(sel)/len(sel), 1)}%\navg time to be profitable : {minutes_to_profit} minutes / {round(minutes_to_profit/(24*60))} days")
-
-# resS = []
-# resH = []
-#
-# for alpha in tqdm(np.linspace(0, 0.5, 11)):
-#     rowS = []
-#     rowH = []
-#     for gamma in np.linspace(0, 1, 11):
-#         r = main(alpha, gamma)
-#         rowS.append(r[0])
-#         rowH.append(r[1])
-#         # print("__________________________")
-#
-#     resS.append(rowS)
-#     resH.append(rowH)
-#
-# # columns for dataframes
-# alphas = [round(x, 2) for x in np.linspace(0, 0.5, 11)]
-# gammas = [round(x, 2) for x in np.linspace(0, 1, 11)]
-#
-# dfS = pd.DataFrame(resS, columns=gammas)
-# dfH = pd.DataFrame(resH, columns=gammas)
-#
-# dfS = dfS.T
-# dfH = dfH.T
-#
-# dfS.columns = alphas
-# dfH.columns = alphas
-#
-# print(dfS)
-# print()
-# print(dfH)
+    print(f"honest : {result['honest_ratio']}%\nselfish_avg : {round(sum(sel)/len(sel), 1)}%\n\
+    avg time to be profitable : {minutes_to_profit} minutes / {round(minutes_to_profit/(24*60))} days")
